@@ -16,6 +16,15 @@ class Maze:
             self.grid.append(row)
         self._gen(0, 0)
 
+        self.start = self.random_inner_cell()
+        
+        self.exits = [self.random_edge_cell() for _ in range(3)]
+
+        sx, sy = self.start
+        self.grid[sy][sx] = 0
+        for ex, ey in self.exits:
+            self.grid[ey][ex] = 0
+
     def _gen(self, x, y):
         self.grid[y][x] = 0
         dirs = [(0, 1), (1, 0), (0, -1), (-1, 0)]
@@ -29,16 +38,23 @@ class Maze:
                     self.grid[y + dy][x + dx] = 0
                     self._gen(nx, ny)
 
-    def show_text(self):
-        for y in range(H):
-            s = ''
-            for x in self.grid[y]:
-                if x == 1:
-                    s += '#'
-                else:
-                    s += ' '
-            print(s)
-        print()
+    def random_edge_cell(self):
+        side = random.choice(["top", "bottom", "left", "right"])
+        if side == "top":
+            return (random.randrange(0, W, 2), 0)
+        elif side == "bottom":
+            return (random.randrange(0, W, 2), H - 1)
+        elif side == "left":
+            return (0, random.randrange(0, H, 2))
+        else:
+            return (W - 1, random.randrange(0, H, 2))
+
+    def random_inner_cell(self):
+        while True:
+            x = random.randrange(1, W - 1)
+            y = random.randrange(1, H - 1)
+            if self.grid[y][x] == 0:
+                return (x, y)
 
 class App:
     def __init__(self, root):
@@ -54,8 +70,11 @@ class App:
             for _ in range(W):
                 row.append(False)
             self.vis.append(row)
-        self.bug = self.c.create_oval(5, 5, 15, 15, fill="orange", outline="brown")
-        self.dfs(0, 0)
+        sx, sy = self.mz.start
+        self.bug = self.c.create_oval(sx * CELL + 5, sy * CELL + 5,
+                                      sx * CELL + 15, sy * CELL + 15,
+                                      fill="orange", outline="brown")
+        self.dfs(sx, sy)
 
     def draw(self):
         for y in range(H):
@@ -70,8 +89,10 @@ class App:
                 x2 = (x + 1) * CELL
                 y2 = (y + 1) * CELL
                 self.c.create_rectangle(x1, y1, x2, y2, fill=color, outline="")
-        self.c.create_rectangle(0, 0, CELL, CELL, fill="green")
-        self.c.create_rectangle((W - 1) * CELL, (H - 1) * CELL, W * CELL, H * CELL, fill="red")
+        sx, sy = self.mz.start
+        self.c.create_rectangle(sx * CELL, sy * CELL, (sx + 1) * CELL, (sy + 1) * CELL, fill="green")
+        for ex, ey in self.mz.exits:
+            self.c.create_rectangle(ex * CELL, ey * CELL, (ex + 1) * CELL, (ey + 1) * CELL, fill="red")
 
     def move(self, x, y):
         x1 = x * CELL + 5
@@ -92,7 +113,7 @@ class App:
             return False
         self.vis[y][x] = True
         self.move(x, y)
-        if x == W - 1 and y == H - 1:
+        if (x, y) in self.mz.exits:
             self.c.itemconfig(self.bug, fill="blue")
             return True
         self.c.create_rectangle(
